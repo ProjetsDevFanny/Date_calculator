@@ -1,8 +1,8 @@
 const start = document.getElementById("start_date");
 const end = document.getElementById("end_date");
 let startValue = start.value;
-
-
+let endValue = end.value;
+const valider = document.querySelector("button");
 
 // FONCTIONS
 
@@ -24,9 +24,6 @@ function ajouterJours(dateString, jours) {
   return date.toISOString().split("T")[0]; // Retourner en format YYYY-MM-DD
 }
 end.value = ajouterJours(dateActuelle, 1); // Affichage de la date de fin (start + 1) dans l'input end
-
-
-
 
 // EVENTLISTENERS
 
@@ -54,3 +51,37 @@ end.addEventListener("change", function () {
     end.value = newDateEnd;
   }
 });
+
+// Affichage du prix total par nuit à la validation du formulaire
+
+// Écouteur d'événement pour le bouton "Valider"
+valider.addEventListener("click", calculerDiffJour);
+
+function calculerDiffJour() {
+  // Récupérer les dates de départ (start) et d'arrivée (end)
+  let startValue = start.value; // Date d'arrivée (=chaînes de caractères)
+  let endValue = end.value; // Date de départ (=chaînes de caractères)
+
+  // Vérifier si les deux dates sont définies
+  if (startValue && endValue) {
+    // Convertir les chaînes de caractères en objets Date
+    let startDate = new Date(startValue);
+    let endDate = new Date(endValue);
+
+    // Calculer la différence en millisecondes
+    let diffTime = endDate - startDate;
+
+    // Convertir la différence en jours
+    let diffDays = diffTime / (1000 * 3600 * 24);
+
+    // Calculer le prix total du séjour
+    let nightPrice = document.getElementById("nightPrice").textContent;
+    let nightPrineNumber = parseInt(nightPrice);
+
+    let total = diffDays * nightPrineNumber;
+
+    // Afficher le prix total du séjour
+    let totalSpan = document.getElementById("total");
+    totalSpan.textContent = total;
+  }
+}
