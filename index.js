@@ -2,65 +2,47 @@ const start = document.getElementById("start_date");
 const end = document.getElementById("end_date");
 const valider = document.querySelector("button");
 
-// FONCTIONS
-
 // Convertit date du jour en format date pour l'input = "yyyy-MM-dd".
-const dateActuelle = new Date(); // Récupère la date du jour et le converti en objet date()
-const iso = dateActuelle.toISOString();
-
-const dateDestructuring = (iso) => {
-  const newDateInput = iso.split("T")[0];
-  const [y, m, d] = newDateInput.split("-");
-  return [y, m, d].join("-");
-};
-
-// Désactive les dates passées pour "start" dans le calendrier
-start.setAttribute("min", dateDestructuring(iso));
-start.value = dateDestructuring(iso); // Affichage de la date du jour dans l'input start
+const dateActuelle = new Date().toLocaleDateString("fr-CA").split("T")[0]; // (= new Date() convertion en objet date())
 
 // Conseil ChatGPT:
-// Utiliser toLocaleDateString() au lieu de split("T")[0]
-// La méthode toISOString() renvoie l'heure UTC, ce qui peut provoquer un décalage de date selon le fuseau horaire. Pour éviter cela :
-// function formaterDate(date) {
-//   return date.toLocaleDateString("fr-CA"); // Format YYYY-MM-DD
-// }
+// la méthode toISOString() renvoie l'heure UTC, ce qui peut provoquer un décalage de date selon le fuseau horaire.
+// new Date().toISOString().split("T")[0];
+// Utiliser plutôt:
+//new Date().toLocaleDateString("fr-CA"); // Format YYYY-MM-DD
 
-// Au lieu de :
-// function formaterDate(date) {
-//   return date.toISOString().split("T")[0];
-// }
+// Date start calcul
+start.setAttribute("min", dateActuelle); // Désactive les dates passées pour "start" dans le calendrier
+start.value.min = dateActuelle; // L'utilisateur ne peut pas sélectionner date départ < date actuelle
+start.value = dateActuelle; // Affichage de la date du jour dans l'input start
+
+// Date end calcul
+end.setAttribute("min", ajouterJours(dateActuelle, 1)); // Désactive les dates antérieures à "start + 1" pour "end"
+end.value.min = ajouterJours(dateActuelle, 1); // L'utilisateur ne peut pas sélectionner date départ < date début + 1
+end.value = ajouterJours(dateActuelle, 1); // Affichage de la date de fin (start + 1) dans l'input end
+
+// FONCTIONS
 
 // Fonction qui convertit la date de l'input en objet date (pour faire + 1 ensuite)
 function ajouterJours(dateString, jours) {
   const date = new Date(dateString); // Convertir la chaîne en objet Date
   date.setDate(date.getDate() + jours); // Ajouter les jours
-  return date.toISOString().split("T")[0]; // Retourner en format YYYY-MM-DD
+  return date.toLocaleDateString("fr-CA").split("T")[0]; // Retourner en format YYYY-MM-DD
 }
-// Désactive les dates antérieures à "start + 1" pour "end"
-end.setAttribute("min", ajouterJours(dateActuelle, 1));
-end.value = ajouterJours(dateActuelle, 1); // Affichage de la date de fin (start + 1) dans l'input end
 
 // EVENTLISTENERS
 
 // Ecouteur d'évènement sur l'input start
 start.addEventListener("change", function () {
-  const startValue = this.value;
-  // Condition pour ne pas avoir une date de fin < date de départ + 1
-  if (startValue < dateDestructuring(iso)) {
-    start.value = dateDestructuring(iso);
+  if (end.value < start.value) {
+    end.value = ajouterJours(start.value, 1); // Additionne 1 à date start et réinjecte dans input end
   }
-  // Additionne 1 à date start et réinjecte dans input end
-  end.setAttribute("min", ajouterJours(start.value, 1));
-  end.value = ajouterJours(start.value, 1); // Mettre à jour end automatiquement
 });
 
 // Condition pour ne pas avoir une date de fin < date de départ + 1
 end.addEventListener("change", function () {
-  const startValue = start.value; // Récupérer la valeur de l'input (YYYY-MM-DD)
-  const newDateEnd = ajouterJours(startValue, 1); // Ajouter 1 jour
-  const endValue = end.value;
-  if (endValue < newDateEnd) {
-    end.value = newDateEnd;
+  if (end.value < start.value) {
+    start.value = ajouterJours(end.value, -1);
   }
 });
 
@@ -69,14 +51,7 @@ end.addEventListener("change", function () {
 // Plutôt que comparer if (endValue < newDateEnd), qui compare des chaînes, fais ceci :
 // end.value = formaterDate(new Date(Math.max(new Date(endValue), new Date(newDateEnd))));
 
-// Affichage du prix total par nuit à la validation du formulaire
-
-// Écouteur d'événement pour le bouton "Valider"
-valider.addEventListener("click", function (event) {
-  event.preventDefault();
-  calculerDiffJour();
-});
-
+// FONCTION = Affichage du prix total par nuit :
 function calculerDiffJour() {
   // Récupérer les dates de départ (start) et d'arrivée (end)
   const startValue = start.value; // Date d'arrivée (=chaînes de caractères)
@@ -90,9 +65,10 @@ function calculerDiffJour() {
 
     // Calculer la différence en millisecondes
     const diffTime = endDate - startDate;
+    // Prof = Math.abs(endDate - startDate); mais apparemment pas besoin (voir explications tout en bas du code)
 
-    // Convertir la différence en jours
-    const diffDays = diffTime / (1000 * 3600 * 24);
+    // Convertir la différence en jours (Math.ceil()= arrondit 1,5 jours = 2 jours facturés)
+    const diffDays = Math.ceil(diffTime / (1000 * 3600 * 24));
 
     // Calculer le prix total du séjour
     const nightPrice = document.getElementById("nightPrice").textContent;
@@ -105,3 +81,24 @@ function calculerDiffJour() {
     totalSpan.textContent = total;
   }
 }
+
+start.addEventListener("change", calculerDiffJour);
+end.addEventListener("change", calculerDiffJour);
+
+calculerDiffJour();
+
+// EXPLICATIONS: Math.abs():
+// Comparaison des deux méthodes :
+
+// Méthode avec différence en millisecondes :
+// Fonctionne comme prévu.
+// Évite d’additionner de la complexité inutile.
+// Si tu veux simplement la différence de temps, c'est la méthode la plus directe et la plus claire.
+
+// Méthode avec Math.abs() :
+// Convient si tu veux éviter des valeurs négatives et que l’ordre des dates importe peu.
+// Peut introduire une complexité inutile si tu veux juste une différence simple entre les deux dates.
+
+// Conclusion :
+// Il est mieux d'utiliser la méthode de la différence de date en millisecondes, comme tu le fais dans ton code.
+// Elle est simple, efficace, et ne nécessite pas d’outils supplémentaires comme Math.abs() dans ce cas précis.
